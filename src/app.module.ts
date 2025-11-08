@@ -4,6 +4,7 @@ import configuration from './config/configuration';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { LoggerModule } from './common/logger/logger.module';
 import { TestModule } from './test/test.module';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { TestModule } from './test/test.module';
       },
     }),
     TestModule,
+    AiModule,
   ],
   controllers: [],
   providers: [],

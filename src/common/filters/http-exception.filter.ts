@@ -33,10 +33,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
         if (exception instanceof HttpException) {
             const res = exception.getResponse();
+
             if (typeof res === 'string') message = res;
             else if (typeof res === 'object') {
                 message = (res as any).message || exception.message;
-                errorCode = (res as any).errorCode || errorCode;
+                errorCode = (res as any).error || errorCode;
             } else {
                 message = exception.message;
             }
