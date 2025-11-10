@@ -6,9 +6,36 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import session from 'express-session';
+import { hashKey } from './common/guards/hashKey';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Lấy ConfigService từ ứng dụng NestJS
+  const configService = app.get(ConfigService);
+  const port = configService.get<number>('app.port') || 3000;
+  const appName = configService.get<string>('app.name') || 'NestJS App';
+  const dbname = configService.get<string>('database.name') || 'NOTCONECTED';
+  const env = configService.get<string>('app.env') || 'development';
+  const sessionSecret = configService.get<string>('app.sessionSecret') || 'defaultSecret';
+  // Thiết lập session
+  app.use(
+    session({
+      secret: sessionSecret, // 🔒 nên lưu .env
+      resave: false,
+      saveUninitialized: false,
+      cookie: { maxAge: 1000 * 60 * 60 }, // 1 giờ
+    }),
+  );
+ // Thiết lập CORS
+  app.enableCors({
+    origin: '*',
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true, // cho phép gửi cookie/token
+  });
+
+
   // Thiết lập global prefix cho tất cả các route
   app.setGlobalPrefix('api'); 
   // Thiết lập Swagger
@@ -22,6 +49,8 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
+ 
+
   // Thiết lập Winston Logger
   const logger = app.get(WINSTON_MODULE_NEST_PROVIDER);
   app.useLogger(logger);
@@ -41,12 +70,7 @@ async function bootstrap() {
     }),
   );
 
-  // Lấy ConfigService từ ứng dụng NestJS
-  const configService = app.get(ConfigService);
-  const port = configService.get<number>('app.port') || 3000;
-  const appName = configService.get<string>('app.name') || 'NestJS App';
-  const dbname = configService.get<string>('database.name') || 'NOTCONECTED';
-  const env = configService.get<string>('app.env') || 'development';
+ 
   await app.listen(process.env.PORT ?? 3000);
 
   console.log('===================================');

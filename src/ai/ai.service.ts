@@ -1,4 +1,11 @@
-import { BadRequestException, ForbiddenException, HttpException, HttpStatus, Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { Content, GoogleGenAI } from '@google/genai';
 import { ConfigService } from '@nestjs/config';
 import { GEMINI_FINISH_REASONS } from './constants/errors';
@@ -11,18 +18,41 @@ import { Repository } from 'typeorm';
 @Injectable()
 export class AiService {
   private ai: GoogleGenAI;
-  private model: string = 'gemini-2.5-flash';
-  constructor(private readonly configService: ConfigService, @InjectRepository(Ai) private repoAi: Repository<Ai>) {
-    const apiKey = this.configService.get<string>('GEMINI_API_KEY');
-    this.ai = new GoogleGenAI({
-      apiKey: apiKey,
-    });
+  private model: string;
+  constructor(
+    private readonly configService: ConfigService,
+    @InjectRepository(Ai) private repoAi: Repository<Ai>,
+  ) {}
+  // Lấy API Key từ DB theo code
+  private async getApiKey(code: string, session: any): Promise<Ai> {
+    
+    if (session.ai?.code === code) {
+      return session.ai;
+    }
+
+    console.log('đến đây');
+    const ai = await this.findOne(code);
+
+    if (!ai) {
+      throw new BadRequestException('Không tìm thấy API Key GEMINI trong cơ sở dữ liệu');
+    }
+
+    session.ai = ai;
+
+    return ai;
+  }
+  // Khởi tạo GoogleGenAI client
+  private async initAiClient(code, sessionStore:Record<string,any>) {
+    const ai = await this.getApiKey(code, sessionStore);
+    this.ai = new GoogleGenAI({ apiKey: ai.key });
+    this.model = ai.model || 'gemini-2.5-flash';
   }
 
-  async generateText(prompt: string): Promise<string | undefined> {
+  async generateText(prompt: string, code: string, sessionStore:Record<string,any>): Promise<string | undefined> {
     try {
-
-      const systemInstruction = "Bạn là một chuyên gia trong lĩnh vực giáo dục tại Việt Nam, luôn cung cấp câu trả lời chính xác và chi tiết. và trả về dưới dạng json.";
+      await this.initAiClient(code, sessionStore);
+      const systemInstruction =
+        'Bạn là một chuyên gia trong lĩnh vực giáo dục tại Việt Nam, luôn cung cấp câu trả lời chính xác và chi tiết. và trả về dưới dạng json.';
 
       // 1. Xây dựng mảng Contents
       const contents: Content[] = [];
@@ -30,25 +60,24 @@ export class AiService {
       // Thêm System Instruction nếu tồn tại
       if (systemInstruction) {
         contents.push({
-          role: "system",
-          parts: [{ text: systemInstruction }]
+          role: 'system',
+          parts: [{ text: systemInstruction }],
         });
       }
 
       // Thêm Prompt của người dùng
       contents.push({
-        role: "user",
-        parts: [{ text: prompt }]
+        role: 'user',
+        parts: [{ text: prompt }],
       });
 
-     
       const response = await this.ai.models.generateContent({
         model: this.model,
         contents: prompt,
         config: {
           temperature: 0.7,
-          // maxOutputTokens: maxTokens,
-        }
+          maxOutputTokens: 6000,
+        },
       });
 
       // 1. KIỂM TRA LỖI LOGIC TẠO SINH DỰA TRÊN CONSTANTS
@@ -59,7 +88,11 @@ export class AiService {
 
         // 1.1. Trường hợp THÀNH CÔNG lý tưởng (finishReason === 'STOP')
         if (finishReason === 'STOP') {
-          if (candidate.content && candidate.content.parts && candidate.content.parts[0].text) {
+          if (
+            candidate.content &&
+            candidate.content.parts &&
+            candidate.content.parts[0].text
+          ) {
             return candidate.content.parts[0].text;
           }
         }
@@ -74,26 +107,32 @@ export class AiService {
               code: errorDetail.code,
               message: errorDetail.message,
             },
-            400
+            400,
           );
         }
 
         // Trường hợp trả về mã finishReason không xác định
-        throw new InternalServerErrorException('Lỗi tạo sinh nội dung không xác định.');
+        throw new InternalServerErrorException(
+          'Lỗi tạo sinh nội dung không xác định.',
+        );
       }
 
       // Trường hợp không có candidates
-      throw new InternalServerErrorException('Mô hình trả về phản hồi rỗng hoặc không hợp lệ.');
-
+      throw new InternalServerErrorException(
+        'Mô hình trả về phản hồi rỗng hoặc không hợp lệ.',
+      );
     } catch (error) {
       // 2. BẮT LỖI HTTP/MẠNG (như 429 RESOURCE_EXHAUSTED)
       // Phần này vẫn cần kiểm tra lỗi HTTP thô từ SDK
       const errorMessage = (error.message || '').toUpperCase();
 
-      if (errorMessage.includes('RESOURCE_EXHAUSTED') || errorMessage.includes('429')) {
+      if (
+        errorMessage.includes('RESOURCE_EXHAUSTED') ||
+        errorMessage.includes('429')
+      ) {
         throw new HttpException(
           'Đã hết giới hạn sử dụng miễn phí (quota). Thử lại sau.',
-          HttpStatus.TOO_MANY_REQUESTS
+          HttpStatus.TOO_MANY_REQUESTS,
         );
       }
 
@@ -103,25 +142,29 @@ export class AiService {
       }
 
       // Lỗi mạng, I/O hoặc lỗi SDK không xác định khác
-      throw new InternalServerErrorException('Lỗi kết nối hoặc lỗi máy chủ không xác định khi gọi API.');
+      throw new InternalServerErrorException(
+        'Lỗi kết nối hoặc lỗi máy chủ không xác định khi gọi API.',
+      );
     }
   }
 
-  async createKeyApi(createDto: CreateDto) : Promise<{code: string}> {
+  async createKeyApi(createDto: CreateDto): Promise<{ code: string }> {
     let code: string = '';
     let exists = true;
 
-    const password = "gdvn@2025"
-    
+    const password = 'gdvn@2025';
+
     // check password khi tạo key
     if (createDto.password !== password) {
-      throw new ForbiddenException('Không có quyền thêm key')
+      throw new ForbiddenException('Không có quyền thêm key');
     }
 
     // check tồn tại key trong DB
-    const keyExists = await this.repoAi.findOne({ where: { key:createDto.key } })
+    const keyExists = await this.repoAi.findOne({
+      where: { key: createDto.key },
+    });
     if (!!keyExists) {
-      throw new BadRequestException('Key đã tồn tại')
+      throw new BadRequestException('Key đã tồn tại');
     }
 
     // check tồn tại mã code nếu tồn tại thì tạo tiếp mã mới
@@ -135,17 +178,18 @@ export class AiService {
       exists = !!found;
     }
 
-    const ai=await this.repoAi.save({
+    const ai = await this.repoAi.save({
       key: createDto.key,
       model: createDto.model,
       code: code.toString(),
     });
 
     return {
-      code:ai.code
-    }
+      code: ai.code,
+    };
   }
 
-
-  
+  async findOne(code: string): Promise<Ai | null> {
+    return this.repoAi.findOne({ where: { code } });
+  }
 }

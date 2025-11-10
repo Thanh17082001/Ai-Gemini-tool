@@ -3,8 +3,10 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import configuration from './config/configuration';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { LoggerModule } from './common/logger/logger.module';
-import { TestModule } from './test/test.module';
 import { AiModule } from './ai/ai.module';
+import { AiClientModule } from './ai-client/ai-client.module';
+import { ChatSessionModule } from './chat-session/chat-session.module';
+import { MessagesModule } from './messages/messages.module';
 
 @Module({
   imports: [
@@ -37,8 +39,10 @@ import { AiModule } from './ai/ai.module';
         })
       },
     }),
-    TestModule,
     AiModule,
+    ChatSessionModule,
+    MessagesModule,
+    // AiClientModule,
   ],
   controllers: [],
   providers: [],

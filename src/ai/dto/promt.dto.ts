@@ -7,4 +7,9 @@ export class Conversation {
     @IsNotEmpty()
     @MaxLength(500, { message: 'Lời nhắc (prompt) không được vượt quá 500 ký tự.' })
     prompt: string;
+
+    @ApiProperty({ description: 'Mã định danh để sử dụng Ai' })
+    @IsString()
+    @IsNotEmpty()
+    code: string;
 }

@@ -13,9 +13,12 @@ export class CreateDto {
     @IsNotEmpty()
     password: string;
 
-    @ApiPropertyOptional({ description: 'Nhập model (mặc định: gemini-2.5-flash)' })
+    @ApiPropertyOptional({
+        description: 'Tên model AI muốn sử dụng. Nếu bỏ trống, mặc định là "gemini-2.5-flash". Ví dụ: "gemini-2.5-flash", "gemini-3"…',
+        example: 'gemini-2.5-flash',
+    })
     @IsOptional()
     @IsString()
-    @Transform(({ value }) => value || 'gemini-2.5-flash')
+    @Transform(({ value }) => value ?? 'gemini-2.5-flash')
     model?: string;
 }

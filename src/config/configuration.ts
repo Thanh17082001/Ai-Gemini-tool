@@ -3,6 +3,9 @@ export default () => ({
         name: process.env.APP_NAME || 'Nest App',
         env: process.env.NODE_ENV || 'development',
         port: parseInt(process.env.PORT || '3000', 10),
+        sessionSecret: process.env.SESSION_SECRET || 'defaultSecret',
+        appKeySecret: process.env.APP_KEY_SECRET || '',
+
     },
     database: {
         url: process.env.DATABASE_URL,
