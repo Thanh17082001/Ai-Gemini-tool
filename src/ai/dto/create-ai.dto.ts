@@ -3,12 +3,17 @@ import { Transform } from "class-transformer";
 import { IsNotEmpty, IsOptional, IsString, MaxLength } from "class-validator";
 
 export class CreateDto {
-    @ApiProperty({ description: 'Nhập api key' })
+    @ApiProperty({ description: 'Nhập api key' , example:'API key của bạn'})
     @IsString()
     @IsNotEmpty()
     key: string;
+
+    @ApiProperty({ example: 'Tên Trường' })
+    @IsString()
+    @IsNotEmpty()
+    school: string;
    
-    @ApiProperty({ description: 'password' })
+    @ApiProperty({ description: 'password', example:'Mật khẩu để thêm API key vào hệ thống' })
     @IsString()
     @IsNotEmpty()
     password: string;

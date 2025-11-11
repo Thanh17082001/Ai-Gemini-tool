@@ -8,6 +8,7 @@ import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import session from 'express-session';
 import { hashKey } from './common/guards/hashKey';
+import { LoggingInterceptor } from './common/interceptor/logging.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -54,6 +55,9 @@ async function bootstrap() {
   // Thiết lập Winston Logger
   const logger = app.get(WINSTON_MODULE_NEST_PROVIDER);
   app.useLogger(logger);
+
+  //custom logging
+  app.useGlobalInterceptors(new LoggingInterceptor());
 
   // Thiết lập Global Exception Filter
   app.useGlobalFilters(new AllExceptionsFilter(logger));

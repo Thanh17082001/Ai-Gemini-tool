@@ -182,6 +182,7 @@ export class AiService {
       key: createDto.key,
       model: createDto.model,
       code: code.toString(),
+      shool: createDto.school,
     });
 
     return {

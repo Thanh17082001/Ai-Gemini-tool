@@ -11,6 +11,7 @@ import { MessagesService } from 'src/messages/messages.service';
 import { AiService } from 'src/ai/ai.service';
 import { Message } from 'src/messages/entities/message.entity';
 import { ConversationUpdeteDto } from 'src/ai/dto/update-ai.dto';
+import { generateTitleFromPrompt } from 'src/common/constants/generateTitle';
 
 @Injectable()
 export class ChatSessionService {
@@ -21,7 +22,7 @@ export class ChatSessionService {
     private readonly aiService: AiService,
     ) {}
   async create(conversation: Conversation, sessionStore: Record<string, any> ) {
-    const { code } = conversation;
+    const { code, prompt } = conversation;
     const ai = await this.repoAi.findOne({ where: { code: code } });
 
     if(!ai){
@@ -30,7 +31,7 @@ export class ChatSessionService {
 
     const chatSession = await this.repoChatSession.save({
       ai: ai,
-      title: 'test session',
+      title: generateTitleFromPrompt(prompt),
       totalTokens: 0,
     })
 
@@ -56,7 +57,7 @@ export class ChatSessionService {
     messages.push(messageAI);
 
     chatSession.messages = messages;
-    chatSession.totalTokens += (prompt.length + (responseAi?.length ?? 0)) / 4;
+    chatSession.totalTokens += Math.round((prompt.length + (responseAi?.length ?? 0)) / 4);
     return this.repoChatSession.save(chatSession);
   }
 
@@ -100,7 +101,7 @@ export class ChatSessionService {
     chatSession.messages.push(aiMessage as unknown as Message);
 
     // 6️⃣ Cập nhật thống kê (nếu có)
-    chatSession.totalTokens += (prompt.length + (responseAi?.length ?? 0)) / 4; // ví dụ tạm tính token
+    chatSession.totalTokens += Math.round((prompt.length + (responseAi?.length ?? 0)) / 4); // ví dụ tạm tính token
     await this.repoChatSession.save(chatSession);
     return "Thành công";
   }
@@ -108,7 +109,7 @@ export class ChatSessionService {
   async findOne(id: number) {
     const session = await this.repoChatSession.findOne({
       where: { id },
-      relations: ['messages', 'ai'],
+      relations: ['messages'],
     });
     return session;
   }

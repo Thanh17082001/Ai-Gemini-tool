@@ -17,14 +17,13 @@ export class AiController {
   ) { }
 
   @Post('conversation')
-  async conversation2(@Body() conversation: Conversation, @Req() req: any, createChatSessionDto: CreateChatSessionDto) {
+  async conversation(@Body() conversation: Conversation, @Req() req: any, createChatSessionDto: CreateChatSessionDto) {
 
     return await this.chatSessionService.create(conversation, req.session);
   }
 
   @Post('key-api')
   async createKeyApi(@Body() createKeyApi: CreateDto) {
-    console.log(createKeyApi);
     return await this.aiService.createKeyApi(createKeyApi);
   }
 
@@ -35,7 +34,6 @@ export class AiController {
 
   @Get()
   findAll(@Query('code') code: string) {
-    console.log(code);
     return this.chatSessionService.findAll(code);
   }
 
