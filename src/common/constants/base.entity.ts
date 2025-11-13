@@ -10,6 +10,9 @@ export abstract class AbstractEntity {
     @Column()
     public uuid: string;
 
+    @Column({default: true})
+    public isActive: boolean;
+
     @CreateDateColumn()
     public createdAt: Date;
 

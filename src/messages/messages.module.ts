@@ -10,6 +10,6 @@ import { ChatSession } from 'src/chat-session/entities/chat-session.entity';
   imports:[TypeOrmModule.forFeature([Message, ChatSession])],
   controllers: [MessagesController],
   providers: [MessagesService],
-  exports: [MessagesService],
+  exports: [MessagesService, TypeOrmModule],
 })
 export class MessagesModule {}

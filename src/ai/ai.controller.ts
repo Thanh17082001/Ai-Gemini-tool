@@ -4,8 +4,8 @@ import { Conversation } from './dto/promt.dto';
 import { CreateDto } from './dto/create-ai.dto';
 import { ApiKeyGuard } from 'src/common/guards/app.guard';
 import { ChatSessionService } from 'src/chat-session/chat-session.service';
-import { CreateChatSessionDto } from 'src/chat-session/dto/create-chat-session.dto';
 import { ConversationUpdeteDto } from './dto/update-ai.dto';
+import { PaginationDto } from './dto/pagination.dto';
 
 
 @Controller('ai')
@@ -17,8 +17,7 @@ export class AiController {
   ) { }
 
   @Post('conversation')
-  async conversation(@Body() conversation: Conversation, @Req() req: any, createChatSessionDto: CreateChatSessionDto) {
-
+  async conversation(@Body() conversation: Conversation, @Req() req: any) {
     return await this.chatSessionService.create(conversation, req.session);
   }
 
@@ -33,13 +32,18 @@ export class AiController {
   }
 
   @Get()
-  findAll(@Query('code') code: string) {
-    return this.chatSessionService.findAll(code);
+  findAll(@Query() pagination: PaginationDto) {
+    return this.chatSessionService.findAll(pagination);
   }
 
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.chatSessionService.findOne(+id);
   }
+
+  // @Get('thanh/:id')
+  // findOne2(@Param('id') id: string) {
+  //   return this.chatSessionService.findOne2(+id);
+  // }
   
 }

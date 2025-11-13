@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreateChatSessionDto } from './dto/create-chat-session.dto';
 import { UpdateChatSessionDto } from './dto/update-chat-session.dto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -12,12 +12,14 @@ import { AiService } from 'src/ai/ai.service';
 import { Message } from 'src/messages/entities/message.entity';
 import { ConversationUpdeteDto } from 'src/ai/dto/update-ai.dto';
 import { generateTitleFromPrompt } from 'src/common/constants/generateTitle';
+import { PaginationDto } from 'src/ai/dto/pagination.dto';
 
 @Injectable()
 export class ChatSessionService {
   constructor(
     @InjectRepository(Ai) private repoAi: Repository<Ai>,
     @InjectRepository(ChatSession) private repoChatSession: Repository<ChatSession>,
+    @InjectRepository(Message) private repoMessage: Repository<Message>,
     private readonly messageService: MessagesService,
     private readonly aiService: AiService,
     ) {}
@@ -114,11 +116,56 @@ export class ChatSessionService {
     return session;
   }
 
-  async findAll(code: string) {
-    return this.repoChatSession
-      .createQueryBuilder('session')
-      .where('code = :code', { code })
-      .orderBy('session.updatedAt', 'DESC')
-      .getMany();
+  async findOne2(id: number, page = 1, limit = 10) {
+    const [session, messages, total] = await Promise.all([
+      this.repoChatSession.findOne({ where: { id } }),
+      this.repoMessage.find({
+        where: { session: { id } },
+        order: { createdAt: 'DESC' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.repoMessage.count({ where: { session: { id } } }),
+    ]);
+
+    if (!session) throw new NotFoundException('Phiên chat không tồn tại');
+
+    return {
+      ...session,
+      messages: {
+        result: messages,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit),
+        },
+      },
+      
+    };
+  }
+
+  async findAll(pagination: PaginationDto) {
+    const query = this.repoChatSession.createQueryBuilder('session');
+    const { search,page, limit } = pagination;
+    if (search) {
+      query.andWhere('LOWER(session.title) LIKE :search', { search: `%${search.toLowerCase().trim()}%` });
+    }
+
+    
+    
+    query.orderBy('session.updatedAt', 'DESC');
+
+    const [data, total] = await query
+      .skip((+page - 1) * +limit)
+      .take(+limit)
+      .getManyAndCount();
+    return {
+      result: data,
+      total: total,
+      resultTotal:data.length,
+      page: +page,
+      limit: +limit,
+    }
   }
 }
