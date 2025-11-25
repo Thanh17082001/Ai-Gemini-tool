@@ -45,6 +45,12 @@ export const GEMINI_FINISH_REASONS: Record<FinishReasonKey, FinishReasonDetail> 
         // 500 (Coi là lỗi nội bộ)
     },
 
+    UNAVAILABLE: {
+        code: 'UNAVAILABLE',
+        message: 'Dịch vụ tạm thời không khả dụng. Vui lòng thử lại sau.',
+        // 500 (Coi là lỗi nội bộ)
+    },
+
     OTHER: {
         code: 'GENERATION_ERROR_OTHER',
         message: 'Lỗi tạo sinh nội dung không xác định.',

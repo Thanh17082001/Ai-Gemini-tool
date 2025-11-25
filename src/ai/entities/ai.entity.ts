@@ -1,13 +1,15 @@
 import { AbstractEntity } from "src/common/constants/base.entity";
-import { Column, Entity } from "typeorm";
+import { Column, Entity, Index } from "typeorm";
 
 
 @Entity()
 export class Ai extends AbstractEntity {
+    @Index() 
     @Column({ type: "text" , unique: true,  nullable: false })
     code:string;
 
-    @Column({ type: 'text', unique: true,  })
+    @Index() 
+    @Column({ type: 'text', unique: true, select: false })
     key: string;
 
     @Column({ type: 'text', unique: false, nullable: true })

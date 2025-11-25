@@ -6,6 +6,7 @@ import { ApiKeyGuard } from 'src/common/guards/app.guard';
 import { ChatSessionService } from 'src/chat-session/chat-session.service';
 import { ConversationUpdeteDto } from './dto/update-ai.dto';
 import { PaginationDto } from './dto/pagination.dto';
+import { PaginationAiDto } from './dto/pagination.ai.dto';
 
 
 @Controller('ai')
@@ -30,6 +31,12 @@ export class AiController {
   async update(@Param('id') id: string,@Body() conversation: ConversationUpdeteDto, @Req() req: any) {
     return await this.chatSessionService.update(id,conversation, req.session);
   }
+  @Get('ai-key')
+  findAllCode(@Query() pagination: PaginationAiDto) {
+    console.log('thiênthanhas');
+    return this.aiService.findAll(pagination);
+  }
+
 
   @Get()
   findAll(@Query() pagination: PaginationDto) {
@@ -41,9 +48,7 @@ export class AiController {
     return this.chatSessionService.findOne(+id);
   }
 
-  // @Get('thanh/:id')
-  // findOne2(@Param('id') id: string) {
-  //   return this.chatSessionService.findOne2(+id);
-  // }
+  
+  
   
 }

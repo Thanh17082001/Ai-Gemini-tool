@@ -49,7 +49,7 @@ export class ChatSessionService {
     messages.push(message);
 
   
-      const responseAi = await this.aiService.generateText(conversation.prompt, code, sessionStore);
+      const responseAi = await this.aiService.generateText(conversation.prompt, code, sessionStore, []);
       const messageCreateDtoAI: CreateMessageDto = {
         sessionId: (await chatSession).id.toString(),
         content: responseAi || 'Hệ thống đang gặp sự cố, vui lòng thử lại sau',
@@ -80,18 +80,18 @@ export class ChatSessionService {
       throw new BadRequestException('Phiên trò chuyện không tồn tại');
     }
 
+    
+
+    const histories = chatSession.messages.map(msg => ({ role: msg.role, content: msg.content }));
+    // 4️⃣ Gửi tới AI và nhận phản hồi
+    const responseAi = await this.aiService.generateText(prompt, code, sessionStore, histories);
+
     // 3️⃣ Lưu tin nhắn của user
     const userMessage = await this.messageService.create({
       sessionId: chatSession.id.toString(),
       content: prompt,
       role: 'user',
     });
-
-    // 4️⃣ Gửi tới AI và nhận phản hồi
-    const start = Date.now();
-    const responseAi = await this.aiService.generateText(prompt, code, sessionStore);
-    const end = Date.now();
-
     // 5️⃣ Lưu tin nhắn AI trả lời
     const aiMessage = await this.messageService.create({
       sessionId: chatSession.id.toString(),

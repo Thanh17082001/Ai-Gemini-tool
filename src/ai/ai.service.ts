@@ -14,6 +14,8 @@ import { CreateDto } from './dto/create-ai.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Ai } from './entities/ai.entity';
 import { Repository } from 'typeorm';
+import { PaginationDto } from './dto/pagination.dto';
+import { PaginationAiDto } from './dto/pagination.ai.dto';
 
 @Injectable()
 export class AiService {
@@ -22,10 +24,10 @@ export class AiService {
   constructor(
     private readonly configService: ConfigService,
     @InjectRepository(Ai) private repoAi: Repository<Ai>,
-  ) {}
+  ) { }
   // Lấy API Key từ DB theo code
   private async getApiKey(code: string, session: any): Promise<Ai> {
-    
+
     if (session.ai?.code === code) {
       return session.ai;
     }
@@ -42,30 +44,31 @@ export class AiService {
     return ai;
   }
   // Khởi tạo GoogleGenAI client
-  private async initAiClient(code, sessionStore:Record<string,any>) {
+  private async initAiClient(code, sessionStore: Record<string, any>) {
     const ai = await this.getApiKey(code, sessionStore);
     this.ai = new GoogleGenAI({ apiKey: ai.key });
     this.model = ai.model || 'gemini-2.5-flash';
   }
 
-  async generateText(prompt: string, code: string, sessionStore:Record<string,any>): Promise<string | undefined> {
+  async generateText(prompt: string, code: string, sessionStore: Record<string, any>, histories: { role: string; content: string }[] = []): Promise<string | undefined> {
     try {
+      //khỏi tạo
       await this.initAiClient(code, sessionStore);
       const systemInstruction =
-        'Bạn là một chuyên gia trong lĩnh vực giáo dục tại Việt Nam, luôn cung cấp câu trả lời chính xác và chi tiết. và trả về dưới dạng json.';
+        'Bạn là một chuyên gia trong lĩnh vực giáo dục tại Việt Nam, luôn cung cấp câu trả lời chính xác và chi tiết. và trả về dưới dạng tiếng Việt dạng .md';
 
       // 1. Xây dựng mảng Contents
       const contents: Content[] = [];
 
-      // Thêm System Instruction nếu tồn tại
-      if (systemInstruction) {
+      // HISTORY (nếu có)
+      for (const msg of histories) {
         contents.push({
-          role: 'system',
-          parts: [{ text: systemInstruction }],
+          role: msg.role == 'user' ? 'user' : 'model',
+          parts: [{ text: msg.content }],
         });
       }
 
-      // Thêm Prompt của người dùng
+      // USER PROMPT (hiện tại)
       contents.push({
         role: 'user',
         parts: [{ text: prompt }],
@@ -73,12 +76,13 @@ export class AiService {
 
       const response = await this.ai.models.generateContent({
         model: this.model,
-        contents: prompt,
+        contents: contents,
         config: {
           temperature: 0.7,
-          maxOutputTokens: 6000,
+          systemInstruction: systemInstruction,
         },
       });
+
 
       // 1. KIỂM TRA LỖI LOGIC TẠO SINH DỰA TRÊN CONSTANTS
       if (response.candidates && response.candidates.length > 0) {
@@ -86,7 +90,7 @@ export class AiService {
         // Ép kiểu để sử dụng làm key trong object hằng số
         const finishReason = candidate.finishReason as FinishReasonKey;
 
-        // 1.1. Trường hợp THÀNH CÔNG lý tưởng (finishReason === 'STOP')
+        // 1.1. Trường hợp THÀNH CÔNG (finishReason === 'STOP')
         if (finishReason === 'STOP') {
           if (
             candidate.content &&
@@ -113,13 +117,13 @@ export class AiService {
 
         // Trường hợp trả về mã finishReason không xác định
         throw new InternalServerErrorException(
-          'Lỗi tạo sinh nội dung không xác định.',
+          'Hệ thống đang bảo trì, vui lòng thử lại sau.',
         );
       }
 
       // Trường hợp không có candidates
       throw new InternalServerErrorException(
-        'Mô hình trả về phản hồi rỗng hoặc không hợp lệ.',
+        'Hệ thống đang bảo trì, vui lòng thử lại sau.',
       );
     } catch (error) {
       // 2. BẮT LỖI HTTP/MẠNG (như 429 RESOURCE_EXHAUSTED)
@@ -141,9 +145,10 @@ export class AiService {
         throw error;
       }
 
+
       // Lỗi mạng, I/O hoặc lỗi SDK không xác định khác
       throw new InternalServerErrorException(
-        'Lỗi kết nối hoặc lỗi máy chủ không xác định khi gọi API.',
+        'Lỗi kết nối hoặc lỗi máy chủ đang bảo trì,vui lòng thử lại sau.',
       );
     }
   }
@@ -192,5 +197,32 @@ export class AiService {
 
   async findOne(code: string): Promise<Ai | null> {
     return this.repoAi.findOne({ where: { code } });
+  }
+
+  async findAll(pagination: PaginationAiDto) {
+    const query = this.repoAi.createQueryBuilder('ai');
+    const { search, page, limit } = pagination;
+    if (search) {
+      const s = `%${search.toLowerCase().trim()}%`;
+      query.andWhere(`
+      LOWER(ai.code) LIKE :s 
+      OR LOWER(ai.shool) LIKE :s
+    `, { s });
+    }
+
+
+    query.orderBy('ai.createdAt', 'DESC');
+
+    const [data, total] = await query
+      .skip((+page - 1) * +limit)
+      .take(+limit)
+      .getManyAndCount();
+    return {
+      result: data,
+      total: total,
+      resultTotal: data.length,
+      page: +page,
+      limit: +limit,
+    }
   }
 }
