@@ -112,6 +112,11 @@ export class ChatSessionService {
     const session = await this.repoChatSession.findOne({
       where: { id },
       relations: ['messages'],
+      order: {
+        messages: {
+          updatedAt: 'ASC', // 'ASC' = Tăng dần (Cũ -> Mới), 'DESC' = Giảm dần (Mới -> Cũ)
+        },
+      },
     });
     return session;
   }
@@ -147,10 +152,16 @@ export class ChatSessionService {
 
   async findAll(pagination: PaginationDto) {
     const query = this.repoChatSession.createQueryBuilder('session');
-    const { search,page, limit } = pagination;
+    const { search, page, limit } = pagination;
     if (search) {
       query.andWhere('LOWER(session.title) LIKE :search', { search: `%${search.toLowerCase().trim()}%` });
     }
+
+    if (!pagination.code) {
+      throw new BadRequestException('Mã định danh ko hợp lệ');
+    }
+
+    query.andWhere('session.code = :code', { code: pagination.code });
 
     
     

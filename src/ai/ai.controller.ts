@@ -44,8 +44,8 @@ export class AiController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.chatSessionService.findOne(+id);
+  async findOne(@Param('id') id: string) {
+    return await this.chatSessionService.findOne(+id);
   }
 
   
